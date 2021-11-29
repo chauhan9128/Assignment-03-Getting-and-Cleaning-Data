@@ -1,0 +1,140 @@
+---
+title: "Assignment 3 Getting and Cleaning Data"
+author: "Akash Chauhan"
+date: "11/26/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=TRUE}
+getwd()
+install.packages("tidyverse")
+library(tidyverse)
+#reading the data into data frame 
+stormdata <- read_csv("StormEvents1994.csv")
+nrow(stormdata)
+#show fist 5 rows of the data 
+head(stormdata, 5)
+#print all column header names
+colnames(x=stormdata)
+```
+
+```{r, echo=TRUE}
+#Limit the data frame to listed columns
+myvars <- c("BEGIN_YEARMONTH",
+            "BEGIN_DAY",
+            "BEGIN_TIME",
+            "BEGIN_DATE_TIME",
+            "END_YEARMONTH",
+            "END_DAY",
+            "END_TIME",
+            "END_DATE_TIME",
+            "EPISODE_ID",
+            "EVENT_ID",
+            "STATE",
+            "STATE_FIPS",
+            "CZ_TYPE",
+            "CZ_FIPS",
+            "CZ_NAME",
+            "EVENT_TYPE",
+            "SOURCE",
+            "BEGIN_LAT",
+            "BEGIN_LON",
+            "END_LAT",
+            "END_LON")
+
+#limit dataframe to above selected vars
+newStormData <- stormdata[myvars]
+head(newStormData, 5)
+colnames(x=newStormData)
+```
+
+
+```{r, echo=TRUE}
+#pad time data with 0 to become format of hhmm(hours-minutes)
+install.packages("lubridate")
+library(lubridate)
+library(dplyr)
+#change to date-time class
+newStormData <- newStormData %>%
+mutate(END_DATE_TIME = dmy_hms(END_DATE_TIME))
+newStormData <- newStormData %>%
+mutate(BEGIN_DATE_TIME = dmy_hms(BEGIN_DATE_TIME))
+head(newStormData, 5)
+colnames(x=newStormData)
+```
+
+```{r}
+#convert upper case state to title case
+newStormData$STATE <- str_to_title(newStormData$STATE, locale = "en")
+newStormData$CZ_NAME <- str_to_title(newStormData$CZ_NAME, locale = "en")
+head(newStormData, 5)
+colnames(x=newStormData)
+```
+
+```{r}
+#Filter where county type is 'C' and then remove CZ_TYPE column
+newSD <- filter(newStormData, CZ_TYPE == 'C')
+head(newSD, 5)
+nrow(newSD)
+
+newSD$CZ_TYPE <- NULL
+head(newSD, 5)
+colnames(x=newSD)
+```
+
+
+```{r}
+#Pad the state and county FIPS with a "0" and unite the 2 col
+newSD$CZ_FIPS <- str_pad(newSD$CZ_FIPS, width = 3, side = "left", pad="0")
+newSD$STATE_FIPS <- str_pad(newSD$STATE_FIPS, width = 2, side = "left", pad="0")
+head(newSD, 5)
+colnames(x=newSD)
+#newSD <- unite(newSD, CZ_FIPS, STATE_FIPS, sep = "", remove = TRUE)
+newSD <- newSD %>% unite("CZ_SATE_FIPS", CZ_FIPS:STATE_FIPS, sep = "", remove = TRUE)
+head(newSD, 5)
+colnames(x=newSD)
+```
+
+```{r}
+#rename all columns to lower case
+newSD <- newSD %>% rename_all(tolower)
+head(newSD, 5)
+colnames(x=newSD)
+
+```
+```{r, include=TRUE}
+#New Data frame with 3 coloumns
+us_state_info <-data.frame(state=state.name, region=state.region, area=state.area)
+us_state_info
+```
+
+
+```{r, include=TRUE}
+#9 - Create a dataframe with the number of events per state using a frequency table
+eventsFreq <- data.frame(table(newStormData$STATE))
+eventsFreq
+eventsFreq<-rename(eventsFreq, c("state"="Var1"))
+head(eventsFreq)
+state_storms <- merge(x=eventsFreq,y=us_state_info,by.x="state", by.y="state")
+
+
+```
+
+
+```{r, include=TRUE}
+#create plot
+library(ggplot2)
+storm_plot <- ggplot(state_storms,
+                     aes(x=area, y=Freq))+
+  geom_point(aes(color = region)) +
+  labs(x = "Land area(sq. miles)",
+       y = "# of storm events in 1994")
+storm_plot
+```
+
